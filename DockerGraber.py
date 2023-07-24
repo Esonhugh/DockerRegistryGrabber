@@ -55,7 +55,7 @@ def printList(dockerlist):
 
 def tryReq(url, token=None,username=None,password=None):
     try:
-        console.print("geting URL: "+url ,style="OK")
+        console.print("Geting URL: "+url + "\n Loading....",style="OK")
         if username and password:
             # console.debug(f"    [+] Using Basic Auth", username, password, style="OK")
             r = req.get(url,verify=False, auth=(username,password))
@@ -86,6 +86,14 @@ def createDir(directoryName):
     if not os.path.exists(directoryName):
         os.makedirs(directoryName)
 
+def IsFileExist(filepath):
+    if os.path.exists(filepath):
+        console.print("File exists. Skip", style="OK")
+        return True
+    else:
+        # console.print("File does not exist")
+        return False
+
 def downloadSha(url, port, docker, sha256, token=None, username=None, password=None):
     createDir(docker)
     directory = f"./{docker}/"
@@ -94,7 +102,9 @@ def downloadSha(url, port, docker, sha256, token=None, username=None, password=N
         geturl = f"{url}:{str(port)}/v2/{docker}/blobs/sha256:{sha}"
         r = tryReq(geturl, token, username, password) 
         if r.status_code == 200:
-            console.print(f"    [+] Downloading : {sha}", style="OK")
+            if IsFileExist(directory + filenamesha):
+                continue
+            console.print(f"[+] Downloading : {sha}", style="OK")
             with open(directory+filenamesha, 'wb') as out:
                 for bits in r.iter_content():
                     out.write(bits)
