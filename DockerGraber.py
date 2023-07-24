@@ -34,6 +34,10 @@ def manageArgs():
     auth = parser.add_argument_group("Authentication")
     auth.add_argument('-U', dest='username', type=str, default="", help='Username')
     auth.add_argument('-P', dest='password', type=str, default="", help='Password')
+
+    token_auth = parser.add_argument_group("Token Authentication")
+    token_auth.add_argument('-t', dest='token', type=str, default="", help='Token')
+
         ### Args Action en opposition
     action = parser.add_mutually_exclusive_group()
     action.add_argument("--dump", metavar="DOCKERNAME", dest='dump', type=str,  help="DockerName")
@@ -49,12 +53,19 @@ def printList(dockerlist):
         else:
             console.print(f"[-] No Docker found", style="NOK")
 
-def tryReq(url, username=None,password=None):
+def tryReq(url, token=None,username=None,password=None):
     try:
+        console.print("geting URL: "+url ,style="OK")
         if username and password:
+            # console.debug(f"    [+] Using Basic Auth", username, password, style="OK")
             r = req.get(url,verify=False, auth=(username,password))
             r.raise_for_status()
+        elif token:
+            # console.debug(f"    [+] Using Token", token, style="OK")
+            r = req.get(url,verify=False, headers={'Authorization': 'Bearer '+token})
+            r.raise_for_status()
         else:
+            # console.print(f"    [+] No Auth", style="OK")
             r = req.get(url,verify=False)
             r.raise_for_status()
     except requests.exceptions.HTTPError as errh:
@@ -75,26 +86,26 @@ def createDir(directoryName):
     if not os.path.exists(directoryName):
         os.makedirs(directoryName)
 
-def downloadSha(url, port, docker, sha256, username=None, password=None):
+def downloadSha(url, port, docker, sha256, token=None, username=None, password=None):
     createDir(docker)
     directory = f"./{docker}/"
     for sha in sha256:
         filenamesha = f"{sha}.tar.gz"
         geturl = f"{url}:{str(port)}/v2/{docker}/blobs/sha256:{sha}"
-        r = tryReq(geturl,username,password) 
+        r = tryReq(geturl, token, username, password) 
         if r.status_code == 200:
             console.print(f"    [+] Downloading : {sha}", style="OK")
             with open(directory+filenamesha, 'wb') as out:
                 for bits in r.iter_content():
                     out.write(bits)
 
-def getBlob(docker, url, port, username=None, password=None):
+def getBlob(docker, url, port, token=None, username=None, password=None):
     tags = f"{url}:{str(port)}/v2/{docker}/tags/list"
-    rr = tryReq(tags,username,password)
+    rr = tryReq(tags,token,username,password)
     data = rr.json()
     image = data["tags"][0]
     url = f"{url}:{str(port)}/v2/{docker}/manifests/"+image+""
-    r = tryReq(url,username,password) 
+    r = tryReq(url,token,username,password) 
     blobSum = []
     if r.status_code == 200:
         regex = re.compile('blobSum')
@@ -116,10 +127,10 @@ def getBlob(docker, url, port, username=None, password=None):
             print()
             return sha256
 
-def enumList(url, port, username=None, password=None,checklist=None):
+def enumList(url, port, token=None,username=None, password=None,checklist=None):
     url = f"{url}:{str(port)}/v2/_catalog"
     try :
-        r = tryReq(url,username,password) 
+        r = tryReq(url,token,username,password) 
         if r.status_code == 200:
             catalog2 = re.split(':|,|\n ',r.text)
             catalog3 = []
@@ -132,16 +143,22 @@ def enumList(url, port, username=None, password=None,checklist=None):
         exit()
 
 def dump(args):
-    sha256 = getBlob(args.dump, args.url, args.port, args.username, args.password)
+    if args.token:
+        sha256 = getBlob(args.dump, args.url, args.port, token=args.token)
+    else:
+        sha256 = getBlob(args.dump, args.url, args.port, args.username, args.password)
     console.print(f"[+] Dumping {args.dump}", style="OK")
-    downloadSha(args.url, args.port, args.dump, sha256, args.username, args.password)
+    downloadSha(args.url, args.port, args.dump, sha256, args.token ,args.username, args.password)
 
 def dumpAll(args):
-    dockerlist = enumList(args.url, args.port, args.username,args.password)
+    if args.token:
+        dockerlist = enumList(args.url, args.port, token=args.token)
+    else:
+        dockerlist = enumList(args.url, args.port, username=args.username,password=args.password)
     for docker in dockerlist[1:]:
         sha256 = getBlob(docker, args.url, args.port, args.username,args.password)
         console.print(f"[+] Dumping {docker}", style="OK")
-        downloadSha(args.url, args.port,docker,sha256,args.username,args.password)
+        downloadSha(args.url, args.port,docker,sha256, args.token,args.username,args.password)
 
 def options():
     args = manageArgs()
