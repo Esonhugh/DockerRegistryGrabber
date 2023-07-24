@@ -88,7 +88,7 @@ def createDir(directoryName):
 
 def IsFileExist(filepath):
     if os.path.exists(filepath):
-        console.print("File exists. Skip", style="OK")
+        console.print("File "+ filepath +" exists. Skip", style="OK")
         return True
     else:
         # console.print("File does not exist")
@@ -99,11 +99,11 @@ def downloadSha(url, port, docker, sha256, token=None, username=None, password=N
     directory = f"./{docker}/"
     for sha in sha256:
         filenamesha = f"{sha}.tar.gz"
+        if IsFileExist(directory + filenamesha):
+            continue
         geturl = f"{url}:{str(port)}/v2/{docker}/blobs/sha256:{sha}"
         r = tryReq(geturl, token, username, password) 
         if r.status_code == 200:
-            if IsFileExist(directory + filenamesha):
-                continue
             console.print(f"[+] Downloading : {sha}", style="OK")
             with open(directory+filenamesha, 'wb') as out:
                 for bits in r.iter_content():
