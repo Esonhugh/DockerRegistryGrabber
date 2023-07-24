@@ -156,7 +156,7 @@ def dump(args):
     if args.token:
         sha256 = getBlob(args.dump, args.url, args.port, token=args.token)
     else:
-        sha256 = getBlob(args.dump, args.url, args.port, args.username, args.password)
+        sha256 = getBlob(args.dump, args.url, args.port, username=args.username, password=args.password)
     console.print(f"[+] Dumping {args.dump}", style="OK")
     downloadSha(args.url, args.port, args.dump, sha256, args.token ,args.username, args.password)
 
